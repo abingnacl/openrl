@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from gymnasium import Env
 
-from .AnyLandmark.multiagent_env import MultiAgentEnv
+from .multiagent_env import MultiAgentEnv
 from .scenarios import load
 
 
