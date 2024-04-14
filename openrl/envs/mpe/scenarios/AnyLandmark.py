@@ -19,7 +19,7 @@ class Scenario(BaseScenario):
     ):
         self.render_mode = render_mode
         world = World()
-        world.name = "AnyLandmark"
+        world.name = "simple_spread"
         world.world_length = world_length
         # set any world properties first
         world.dim_c = 2
@@ -56,6 +56,7 @@ class Scenario(BaseScenario):
             agent.state.p_pos = np_random.uniform(-1, +1, world.dim_p)
             agent.state.p_vel = np.zeros(world.dim_p)
             agent.state.c = np.zeros(world.dim_c)
+            agent.death = False
         for i, landmark in enumerate(world.landmarks):
             landmark.state.p_pos = 0.8 * np_random.uniform(-1, +1, world.dim_p)
             landmark.state.p_vel = np.zeros(world.dim_p)
@@ -63,21 +64,23 @@ class Scenario(BaseScenario):
     def benchmark_data(self, agent, world):
         rew = 0
         collisions = 0
+        occupied_landmarks = 0
         min_dists = 0
-        dists = []
         for landmark in world.landmarks:
-            for a in world.agents:
-                if not a.death:
-                    dists.append(np.sqrt(np.sum(np.square(a.state.p_pos - landmark.state.p_pos))))
-        rew = -min(dists)
-        min_dists = +min(dists)
-        # 传进来的都是活的
+            dists = [
+                np.sqrt(np.sum(np.square(a.state.p_pos - landmark.state.p_pos)))
+                for a in world.agents
+            ]
+            min_dists += min(dists)
+            rew -= min(dists)
+            if min(dists) < 0.1:
+                occupied_landmarks += 1
         if agent.collide:
             for a in world.agents:
-                if not a.death and a is agent:
-                    if self.is_collision(a, agent):
-                        rew -= 1
-        return (rew, collisions, min_dists)
+                if self.is_collision(a, agent):
+                    rew -= 1
+                    collisions += 1
+        return (rew, collisions, min_dists, occupied_landmarks)
 
     def is_collision(self, agent1, agent2):
         delta_pos = agent1.state.p_pos - agent2.state.p_pos
@@ -87,18 +90,18 @@ class Scenario(BaseScenario):
 
     def reward(self, agent, world):
         # Agents are rewarded based on minimum agent distance to each landmark, penalized for collisions
-        dists = []
+        rew = 0
         for landmark in world.landmarks:
-            for a in world.agents:
-                if not a.death:
-                    dists.append(np.sqrt(np.sum(np.square(a.state.p_pos - landmark.state.p_pos))))
-        rew = -min(rew)
-        # 传进来的都是活的
+            dists = [
+                np.sqrt(np.sum(np.square(a.state.p_pos - landmark.state.p_pos)))
+                for a in world.agents
+            ]
+            rew -= min(dists)
+
         if agent.collide:
             for a in world.agents:
-                if not a.death and a is agent:
-                    if self.is_collision(a, agent):
-                        rew -= 1
+                if self.is_collision(a, agent):
+                    rew -= 1
         return rew
 
     def observation(self, agent, world):
@@ -114,7 +117,7 @@ class Scenario(BaseScenario):
         comm = []
         other_pos = []
         for other in world.agents:
-            if other is agent or other.death:
+            if other is agent:
                 continue
             comm.append(other.state.c)
             other_pos.append(other.state.p_pos - agent.state.p_pos)

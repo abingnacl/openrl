@@ -114,6 +114,8 @@ class Agent(Entity):
         self.action_callback = None
         # zoe 20200420
         self.goal = None
+        # death
+        self.death = False
 
 
 # multi-agent world
@@ -156,12 +158,21 @@ class World(object):
     # return all agents controllable by external policies
     @property
     def policy_agents(self):
-        return [agent for agent in self.agents if agent.action_callback is None]
+        return [agent for agent in self.agents if agent.action_callback is None and agent.death is False]
 
     # return all agents controlled by world scripts
     @property
     def scripted_agents(self):
-        return [agent for agent in self.agents if agent.action_callback is not None]
+        return [agent for agent in self.agents if agent.action_callback is not None and agent.death is False]
+
+    @property
+    def alive_agents(self):
+        return [agent for agent in self.agents if agent.death is False]
+    
+    @property
+    def death_agents(self):
+        return [agent for agent in self.agents if agent.death is True]
+    
 
     def calculate_distances(self):
         if self.cached_dist_vect is None:
@@ -233,6 +244,10 @@ class World(object):
         # calculate and store distances between all entities
         if self.cache_dists:
             self.calculate_distances()
+        # set actions for death agents
+        for agent in self.death_agents:
+            agent.action = agent.action_callback(agent, self)
+
 
     # gather agent action forces
     def apply_action_force(self, p_force):

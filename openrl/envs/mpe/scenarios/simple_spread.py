@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 
-from openrl.envs.mpe.core import Agent, Landmark, World
+from openrl.envs.mpe.core import Agent, Landmark, Wall, World
 from openrl.envs.mpe.scenario import BaseScenario
 
 
@@ -13,9 +13,9 @@ class Scenario(BaseScenario):
     def make_world(
         self,
         render_mode: Optional[str] = None,
-        world_length: int = 25,
-        num_agents: int = 3,
-        num_landmarks: int = 3,
+        world_length: int = 250,
+        num_agents: int = 4,
+        num_landmarks: int = 4,
     ):
         self.render_mode = render_mode
         world = World()
@@ -39,6 +39,10 @@ class Scenario(BaseScenario):
             landmark.name = "landmark %d" % i
             landmark.collide = False
             landmark.movable = False
+        # add walls
+        wall1 = Wall(orient='H', axis_pos=0.5, endpoints=(-0.5, 0.5), length=0.2, width=0.2, hard=True)
+        wall2 = Wall(orient='V', axis_pos=0.0, endpoints=(-0.8, -0.6), length=0.2, width=0.3, hard=False)
+        world.walls = [wall1, wall2]
         # make initial conditions
         self.reset_world(world)
         return world

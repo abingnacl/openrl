@@ -13,7 +13,7 @@ def train():
     # create environment
     env_num = 70
     env = make(
-        "AnyLandmark",
+        "simple_spread",
         env_num=env_num,
         asynchronous=True,
     )
@@ -22,19 +22,19 @@ def train():
     cfg = cfg_parser.parse_args()
     net = Net(env, cfg=cfg, device="cuda")
     # initialize the trainer
-    agent = Agent(net, use_wandb=False)
+    agent = Agent(net, use_wandb=True)
     # start training, set total number of training steps to 5000000
-    agent.train(total_time_steps=50000000)
+    agent.train(total_time_steps=14e6)
     env.close()
     agent.save("./ppo_agent/")
     return agent
 
-
+ 
 def evaluation(agent):
     render_model = "group_human"
-    env_num = 9
+    env_num = 4
     env = make(
-        "AnyLandmark", render_mode=render_model, env_num=env_num, asynchronous=False
+        "simple_spread", render_mode=render_model, env_num=env_num, asynchronous=False
     )
     agent.load("./ppo_agent/")
     agent.set_env(env)
@@ -53,9 +53,9 @@ def evaluation(agent):
 
 def eval():
     # 创建 MPE 环境
-    env = make( "AnyLandmark", env_num=4)
+    env = make( "simple_spread", env_num=4)
     # 使用GIFWrapper，用于生成gif
-    env = GIFWrapper(env, "test_AnyLandmark.gif")
+    env = GIFWrapper(env, "test_simple_spread.gif")
     agent = Agent(Net(env)) # 创建 智能体
     # 加载训练好的模型
     agent.load('./ppo_agent/')
@@ -65,11 +65,12 @@ def eval():
         # 智能体根据 observation 预测下一个动作
         action, _ = agent.act(obs)
         obs, r, done, info = env.step(action)
-        if done.any():
+        if done.all():
             break
     env.close()
 
 
 if __name__ == "__main__":
-    agent = train()
-    evaluation(agent)
+    # agent = train()
+    # evaluation(agent)
+    eval()

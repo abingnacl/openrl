@@ -166,6 +166,10 @@ class World(object):
         return [agent for agent in self.agents if agent.action_callback is not None and agent.death is False]
 
     @property
+    def alive_agents(self):
+        return [agent for agent in self.agents if agent.death is False]
+    
+    @property
     def death_agents(self):
         return [agent for agent in self.agents if agent.death is True]
     

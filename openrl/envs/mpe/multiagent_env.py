@@ -22,7 +22,7 @@ class EnvSpec:
 # currently code assumes that no agents will be created/destroyed at runtime!
 class MultiAgentEnv(gym.Env):
     metadata = {"render.modes": ["human", "rgb_array"]}
-    spec = EnvSpec("")
+    spec = EnvSpec("AnyLandmark-v1")
     _np_random: Optional[np.random.Generator] = None
 
     def __init__(
@@ -150,7 +150,7 @@ class MultiAgentEnv(gym.Env):
             }
         )
         self.action_space = self.all_action_spaces[0]
-
+    
         # rendering
         self.shared_viewer = shared_viewer
         if self.shared_viewer:
@@ -195,7 +195,13 @@ class MultiAgentEnv(gym.Env):
         if self.post_step_callback is not None:
             self.post_step_callback(self.world)
         self.deal_render()
-
+        self.alive_agents = self.world.alive_agents
+        for agent in self.alive_agents:
+            dists = []
+            for landmark in self.world.landmarks:
+                dists.append(np.linalg(landmark.pos_p, agent.pos_p))
+            if min(dists) < 0.1:
+                agent.death = True
         return self.construct_obs(obs_n), reward_n, done_n, info_n
 
     def deal_render(self):
@@ -258,7 +264,7 @@ class MultiAgentEnv(gym.Env):
     # unused right now -- agents are allowed to go beyond the viewing screen
     def _get_done(self, agent):
         if self.done_callback is None:
-            if self.current_step >= self.world_length:
+            if self.current_step >= self.world_length and len(self.alive_agents) == 0:
                 return True
             else:
                 return False
@@ -355,9 +361,9 @@ class MultiAgentEnv(gym.Env):
         if mode == "human":
             alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             message = ""
-            for agent in self.world.agents:
+            for agent in self.world.alive_agents:
                 comm = []
-                for other in self.world.agents:
+                for other in self.world.alive_agents:
                     if other is agent:
                         continue
                     if np.all(other.state.c == 0):
@@ -395,24 +401,27 @@ class MultiAgentEnv(gym.Env):
                 entity_comm_geoms = []
 
                 if "agent" in entity.name:
-                    geom.set_color(*entity.color, alpha=0.5)
+                    # 是agent时，绘图
+                    if entity.death is False:
+                        geom.set_color(*entity.color, alpha=0.5)
 
-                    if not entity.silent:
-                        dim_c = self.world.dim_c
-                        # make circles to represent communication
-                        for ci in range(dim_c):
-                            comm = rendering.make_circle(entity.size / dim_c)
-                            comm.set_color(1, 1, 1)
-                            comm.add_attr(xform)
-                            offset = rendering.Transform()
-                            comm_size = entity.size / dim_c
-                            offset.set_translation(
-                                ci * comm_size * 2 - entity.size + comm_size, 0
-                            )
-                            comm.add_attr(offset)
-                            entity_comm_geoms.append(comm)
+                        if not entity.silent:
+                            dim_c = self.world.dim_c
+                            # make circles to represent communication
+                            for ci in range(dim_c):
+                                comm = rendering.make_circle(entity.size / dim_c)
+                                comm.set_color(1, 1, 1)
+                                comm.add_attr(xform)
+                                offset = rendering.Transform()
+                                comm_size = entity.size / dim_c
+                                offset.set_translation(
+                                    ci * comm_size * 2 - entity.size + comm_size, 0
+                                )
+                                comm.add_attr(offset)
+                                entity_comm_geoms.append(comm)
 
                 else:
+                    # 不是agent时，绘图
                     geom.set_color(*entity.color)
                     if entity.channel is not None:
                         dim_c = self.world.dim_c
@@ -474,12 +483,13 @@ class MultiAgentEnv(gym.Env):
             for e, entity in enumerate(self.world.entities):
                 self.render_geoms_xform[e].set_translation(*entity.state.p_pos)
                 if "agent" in entity.name:
-                    self.render_geoms[e].set_color(*entity.color, alpha=0.5)
+                    if entity.death is False:
+                        self.render_geoms[e].set_color(*entity.color, alpha=0.5)
 
-                    if not entity.silent:
-                        for ci in range(self.world.dim_c):
-                            color = 1 - entity.state.c[ci]
-                            self.comm_geoms[e][ci].set_color(color, color, color)
+                        if not entity.silent:
+                            for ci in range(self.world.dim_c):
+                                color = 1 - entity.state.c[ci]
+                                self.comm_geoms[e][ci].set_color(color, color, color)
                 else:
                     self.render_geoms[e].set_color(*entity.color)
                     if entity.channel is not None:
