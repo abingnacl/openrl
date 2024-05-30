@@ -7,11 +7,12 @@ from openrl.envs.common import make
 from openrl.envs.wrappers.mat_wrapper import MATWrapper
 from openrl.modules.common import VDNNet as Net
 from openrl.runners.common import VDNAgent as Agent
+from openrl.envs.wrappers import GIFWrapper # 用于生成gif
 
 
 def train():
     # create environment
-    env_num = 100
+    env_num = 10
     env = make(
         "simple_spread",
         env_num=env_num,
@@ -25,7 +26,7 @@ def train():
     net = Net(env, cfg=cfg, device="cuda")
 
     # initialize the trainer
-    agent = Agent(net, use_wandb=True)
+    agent = Agent(net, use_wandb=False)
     # start training
     agent.train(total_time_steps=5000000)
     env.close()
@@ -36,10 +37,11 @@ def train():
 def evaluation(agent):
     # render_model = "group_human"
     render_model = None
-    env_num = 9
+    env_num = 1
     env = make(
         "simple_spread", render_mode=render_model, env_num=env_num, asynchronous=False
-    )
+    )    
+    env = GIFWrapper(env, "./test_simple_spread_RAIL1.0_vdn.gif")
     env = MATWrapper(env)
     agent.load("./vdn_agent/")
     agent.set_env(env)
